@@ -1,2 +1,4 @@
 .DS_Store
 gym/
+.ipynb_checkpoints
+video/
