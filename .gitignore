@@ -3,3 +3,4 @@ gym/
 .ipynb_checkpoints
 video/
 __pycache__
+*.pth
