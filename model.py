@@ -8,7 +8,7 @@ class DQN(nn.Module):
   def __init__(self, outputs=9):
     super(DQN, self).__init__()
 
-    self.conv1 = nn.Conv2d(1, 8, kernel_size = 4, stride = 2)
+    self.conv1 = nn.Conv2d(3, 8, kernel_size = 4, stride = 2)
     self.bn1 = nn.BatchNorm2d(8)
     self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 1, padding = 0)
 
@@ -26,7 +26,7 @@ class DQN(nn.Module):
     x = F.relu(self.bn2(self.conv2(x)))
     x = self.pool2(x)
 
-    print(self.num_flat_features(x))
+    # print(self.num_flat_features(x))
     # Flatten the input
     x = x.view(-1, 29584)
     x = F.relu(self.fc1(x))

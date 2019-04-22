@@ -3,6 +3,7 @@ import itertools as it
 import random
 from skimage import color, transform
 from collections import namedtuple, deque
+from PIL import Image
 
 from model import DQN
 from experience_history import History
@@ -22,6 +23,7 @@ class DQNAgent:
     print('---------- Initializing -----------')
     # Training Parameters
     self.batch_size = 64
+    self.num_frame_stack = 3
     self.image_size = (96, 96)
     self.gamma = 0.95 
     self.initial_epsilon = 1.0
@@ -45,11 +47,15 @@ class DQNAgent:
     acceleration = [1, 0]
     brake = [0.3, 0]
     all_actions = np.array([action for action in it.product(left_right, acceleration, brake)])
+
+    # defined_actions = [[-1, 0, 0], [0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 0.3]]
+    # all_actions = np.array(defined_actions)
+
     self.action_map = all_actions
     self.num_actions = len(self.action_map)
     gas_actions = np.array([a[1] == 1 and a[2] == 0 for a in self.action_map])
     # Increase the weight of gas actions for the car.
-    self.action_weights = 14.0 * gas_actions + 1.0
+    self.action_weights = 10.0 * gas_actions + 1.0
     self.action_weights /= np.sum(self.action_weights)
 
     print('Action Map -> ', len(self.action_map))
@@ -75,19 +81,20 @@ class DQNAgent:
     
     # History
     self.experience_capacity = int(4e4)
-    self.memory = History(self.experience_capacity, self.batch_size, self.seed)
+    self.memory = History(self.num_frame_stack, self.experience_capacity)
     self.t_step = 0
+    self.network_chosen_action = 0
   
-  def step(self, state, action, reward, next_state, done):
+  def step(self, state, action, reward, done):
     # Save experience in replay memory
-    self.memory.add(state, action, reward, next_state, done)
+    self.memory.add(state, action, reward, done)
     
     # Learn every UPDATE_EVERY time steps.
     self.t_step = (self.t_step + 1) % self.train_freq
     if self.t_step == 0:
       # If enough samples are available in memory, get random subset and learn
-      if len(self.memory) > self.min_experience_size:
-        experiences = self.memory.sample()
+      if self.memory.counter > self.min_experience_size:
+        experiences = self.memory.sample(self.batch_size)
         self.learn(experiences)
 
   def get_action(self, state):
@@ -100,8 +107,9 @@ class DQNAgent:
     """
     # Epsilon-greedy action selection
     if random.random() > self.get_epsilon():
+      self.network_chosen_action += 1
       # Add the batch dimension before creating a tensor
-      state = state[np.newaxis, ...]
+      state = state[np.newaxis, np.newaxis, ...]
       state = torch.from_numpy(state).float().to(device)
       self.training_model.eval()
       with torch.no_grad():
@@ -122,15 +130,16 @@ class DQNAgent:
         gamma (float): discount factor
     """
     states, actions, rewards, next_states, dones = experiences
-
+    
     # Get max predicted Q values (for next states) from target model
     Q_targets_next = self.target_model(next_states).detach().max(1)[0].unsqueeze(1)
     # Compute Q targets for current states 
     Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
-
+    # print(Q_targets)
     # Get expected Q values from local model
     Q_expected = self.training_model(states).gather(1, actions)
     # Compute loss
+    # print(Q_expected)
     loss = F.mse_loss(Q_expected, Q_targets)
 
     # print(loss.item())
@@ -141,8 +150,8 @@ class DQNAgent:
     self.optimizer.step()
 
     # ------------------- update target network ------------------- #
-    # if self.global_counter % self.network_update_frequency == 0:
-    self.soft_update(self.training_model, self.target_model)                     
+    if self.global_counter % self.network_update_frequency == 0:
+      self.soft_update(self.training_model, self.target_model)                     
 
   def soft_update(self, local_model, target_model):
     """Soft update model parameters.
@@ -169,11 +178,10 @@ class DQNAgent:
   def play_episode(self):
     total_reward = 0
     frames_in_episode = 0
-
+    
     state = self.env.reset()
     state = self.process_image(state)
-
-    print('Epsilon decay steps ---->', self.global_counter)
+    self.memory.start_new_episode(state)
 
     while True:
       self.global_counter += 1
@@ -200,7 +208,7 @@ class DQNAgent:
       done = early_done or done
 
       next_state = self.process_image(next_state)
-      self.step(state, action_idx, reward, next_state, done)
+      self.step(state, action_idx, reward, done)
 
       state = next_state
       total_reward += reward
@@ -214,8 +222,10 @@ class DQNAgent:
   # Convert RGB Image to grayscale and channel dimension
   def process_image(self, img):
     i = 2 * color.rgb2gray(img) - 1
-    return i[np.newaxis, ...]
-
+    # return i[np.newaxis, ...]
+    return i
+    # i = np.swapaxes(img, 0, 2)
+    # return (i - 128) / 128.0
 
   # Returns a random action.
   def get_random_action(self):
