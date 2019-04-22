@@ -3,7 +3,7 @@ import itertools as it
 import random
 from skimage import color, transform
 from collections import namedtuple, deque
-from skimage import color, transform
+
 from model import DQN
 from experience_history import History
 
@@ -29,9 +29,12 @@ class DQNAgent:
     self.epsilon_decay_steps = int(1e5)
     self.learning_rate = 4e-4
     self.tau = 1e-3
+
+    # Flags
     self.network_update_frequency = int(1e3)
     self.train_freq = 4
     self.frame_skip = 3
+    self.min_experience_size = 64
     
     # Enviroment
     self.render = True
@@ -54,6 +57,12 @@ class DQNAgent:
     # Model (Neural Network)
     self.training_model = DQN(self.num_actions)
     self.target_model = DQN(self.num_actions)
+
+    # Load models to GPU
+    if torch.cuda.is_available():
+      self.training_model.cuda()
+      self.target_model.cuda()
+    
     self.optimizer = optim.Adam(self.training_model.parameters(), lr = self.learning_rate)
 
     print('---------- Model ---------')
@@ -77,7 +86,7 @@ class DQNAgent:
     self.t_step = (self.t_step + 1) % self.train_freq
     if self.t_step == 0:
       # If enough samples are available in memory, get random subset and learn
-      if len(self.memory) > self.batch_size:
+      if len(self.memory) > self.min_experience_size:
         experiences = self.memory.sample()
         self.learn(experiences)
 
@@ -100,7 +109,6 @@ class DQNAgent:
         
       self.training_model.train()
       action = np.argmax(action_values.cpu().data.numpy())
-      print('Network chosen action ->', action)
       return action
     else:
       return self.get_random_action()
@@ -133,8 +141,8 @@ class DQNAgent:
     self.optimizer.step()
 
     # ------------------- update target network ------------------- #
-    if self.global_counter % self.network_update_frequency == 0:
-      self.soft_update(self.training_model, self.target_model)                     
+    # if self.global_counter % self.network_update_frequency == 0:
+    self.soft_update(self.training_model, self.target_model)                     
 
   def soft_update(self, local_model, target_model):
     """Soft update model parameters.
@@ -147,7 +155,8 @@ class DQNAgent:
         tau (float): interpolation parameter 
     """
     for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-        target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
+      # self.tau * local_param.data + (1.0 - self.tau) * target_param.data
+      target_param.data.copy_(local_param.data)
           
   def get_epsilon(self):
     if self.global_counter >= self.epsilon_decay_steps:
@@ -187,6 +196,8 @@ class DQNAgent:
 
       if early_done:
         reward += punishment
+
+      done = early_done or done
 
       next_state = self.process_image(next_state)
       self.step(state, action_idx, reward, next_state, done)
