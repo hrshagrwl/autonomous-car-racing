@@ -42,11 +42,11 @@ class History:
   def sample(self, n):
     transitions = random.sample(self.memory, n)
 
-    states = torch.from_numpy(np.vstack([[self.frames[e.state] for e in transitions if e is not None]])).float().to(device)
-    actions = torch.from_numpy(np.vstack([e.action for e in transitions if e is not None])).long().to(device)
-    rewards = torch.from_numpy(np.vstack([e.reward for e in transitions if e is not None])).float().to(device)
-    next_states = torch.from_numpy(np.vstack([[self.frames[e.next_state] for e in transitions if e is not None]])).float().to(device)
-    dones = torch.from_numpy(np.vstack([e.done for e in transitions if e is not None]).astype(np.uint8)).float().to(device)
+    states = np.vstack([[self.frames[e.state] for e in transitions if e is not None]])
+    actions = np.array([e.action for e in transitions if e is not None])
+    rewards = np.array([e.reward for e in transitions if e is not None])
+    next_states = np.vstack([[self.frames[e.next_state] for e in transitions if e is not None]])
+    dones = np.array([e.done for e in transitions if e is not None])
 
     return states, actions, rewards, next_states, dones
 
