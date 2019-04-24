@@ -3,7 +3,9 @@ import itertools as it
 import random
 from skimage import color, transform
 from collections import namedtuple, deque
-from PIL import Image
+
+import tensorflow.contrib.slim as slim
+import tensorflow as tf
 
 import sys
 
@@ -30,9 +32,9 @@ class DQNAgent:
     self.num_frame_stack = 3
     self.image_size = (96, 96)
     self.gamma = 0.95 
-    self.initial_epsilon = 0.3
-    self.min_epsilon = 0.3
-    self.epsilon_decay_steps = 150000
+    self.initial_epsilon = 1
+    self.min_epsilon = 0.1
+    self.epsilon_decay_steps = int(1e5)
     self.learning_rate = 4e-4
     self.tau = 1
 
@@ -87,7 +89,6 @@ class DQNAgent:
     # History
     self.experience_capacity = int(4e4)
     self.memory = History(self.num_frame_stack, self.experience_capacity)
-    self.t_step = 0
     self.network_chosen_action = 0
   
   def _get_model(self):
@@ -111,21 +112,13 @@ class DQNAgent:
     self.memory.add(state, action, reward, done)
     
     # Learn every UPDATE_EVERY time steps.
-    self.t_step = (self.t_step + 1) % self.train_freq
-    if self.t_step == 0:
+    if self.global_counter % self.train_freq == 0:
       # If enough samples are available in memory, get random subset and learn
       if self.memory.counter > self.min_experience_size:
         experiences = self.memory.sample(self.batch_size)
         self.learn(experiences)
 
   def get_action(self):
-    """Returns actions for given state as per current policy.
-    
-    Params
-    ======
-        state (array_like): current state
-        eps (float): epsilon, for epsilon-greedy action selection
-    """
     # Epsilon-greedy action selection
 
     if random.random() > self.get_epsilon():
