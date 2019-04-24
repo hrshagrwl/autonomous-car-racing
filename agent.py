@@ -39,8 +39,7 @@ class DQNAgent:
     self.min_experience_size = 64
     
     # Enviroment
-    self.render = True
-    self.seed = 7    # Seed to random 
+    self.render = True 
     
     # Possible Actions and their corresponding weights
     left_right = [-1, 0, 1]
@@ -57,8 +56,7 @@ class DQNAgent:
     # Increase the weight of gas actions for the car.
     self.action_weights = 10.0 * gas_actions + 1.0
     self.action_weights /= np.sum(self.action_weights)
-
-    print('Action Map -> ', len(self.action_map))
+    print('Action Map -> ', self.action_map)
     
     # Model (Neural Network)
     self.training_model = DQN(self.num_actions)
@@ -77,7 +75,7 @@ class DQNAgent:
     # Negative Reward
     # To check if we want to end the episode earlier
     self.neg_reward_counter = 0
-    self.max_neg_rewards = 12
+    self.max_neg_rewards = 8
     
     # History
     self.experience_capacity = int(4e4)
@@ -97,7 +95,7 @@ class DQNAgent:
         experiences = self.memory.sample(self.batch_size)
         self.learn(experiences)
 
-  def get_action(self, state):
+  def get_action(self):
     """Returns actions for given state as per current policy.
     
     Params
@@ -109,7 +107,7 @@ class DQNAgent:
     if random.random() > self.get_epsilon():
       self.network_chosen_action += 1
       # Add the batch dimension before creating a tensor
-      state = state[np.newaxis, np.newaxis, ...]
+      state = self.memory.current_state()[np.newaxis, ...]
       state = torch.from_numpy(state).float().to(device)
       self.training_model.eval()
       with torch.no_grad():
@@ -150,8 +148,8 @@ class DQNAgent:
     self.optimizer.step()
 
     # ------------------- update target network ------------------- #
-    if self.global_counter % self.network_update_frequency == 0:
-      self.soft_update(self.training_model, self.target_model)                     
+    # if self.global_counter % self.network_update_frequency == 0:
+                        
 
   def soft_update(self, local_model, target_model):
     """Soft update model parameters.
@@ -178,6 +176,8 @@ class DQNAgent:
   def play_episode(self):
     total_reward = 0
     frames_in_episode = 0
+
+    self.soft_update(self.training_model, self.target_model) 
     
     state = self.env.reset()
     state = self.process_image(state)
@@ -186,7 +186,7 @@ class DQNAgent:
     while True:
       self.global_counter += 1
       frames_in_episode += 1
-      action_idx = self.get_action(state)
+      action_idx = self.get_action()
       action = self.action_map[action_idx]
       reward = 0
       if self.render:
@@ -213,7 +213,7 @@ class DQNAgent:
       state = next_state
       total_reward += reward
 
-      if early_done or done:
+      if done:
         break
   
     return total_reward, frames_in_episode
