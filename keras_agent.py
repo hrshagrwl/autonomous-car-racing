@@ -36,13 +36,13 @@ class DQNAgent:
     self.min_epsilon = 0.1
     self.epsilon_decay_steps = int(1e5)
     self.learning_rate = 4e-4
-    self.tau = 1
+    self.tau = 0
 
     # Flags
     self.network_update_frequency = int(1e3)
     self.train_freq = 4
     self.frame_skip = 3
-    self.min_experience_size = 64
+    self.min_experience_size = int(1e4)
     
     # Enviroment
     self.render = True 
@@ -93,7 +93,7 @@ class DQNAgent:
   
   def _get_model(self):
     model = Sequential()
-    model.add(Conv2D(filters = 8, kernel_size = 3, activation='relu', 
+    model.add(Conv2D(filters = 8, kernel_size = 7, activation='relu', 
       input_shape=(self.num_frame_stack,) + self.image_size, data_format='channels_first'))
     model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size = (2, 2), dim_ordering="th"))
@@ -220,9 +220,8 @@ class DQNAgent:
       done = early_done or done
 
       next_state = self.process_image(next_state)
-      self.step(state, action_idx, reward, done)
+      self.step(next_state, action_idx, reward, done)
 
-      state = next_state
       total_reward += reward
 
       if done:
