@@ -142,15 +142,16 @@ class DQNAgent:
         self.learn(experiences)
 
   def learn(self, experiences):
-    states, actions, rewards, next_states, dones = experiences
+    batch = self.memory.sample(self.batch_size)
     fd = {
-        self.input_reward: rewards,
-        self.input_prev_state: states,
-        self.input_next_state: next_states,
-        self.input_actions: actions,
-        self.input_done_mask: dones
+      self.input_reward: "reward",
+      self.input_prev_state: "prev_state",
+      self.input_next_state: "next_state",
+      self.input_actions: "actions",
+      self.input_done_mask: "done_mask"
     }
-    self.session.run([self.train_op], fd)
+    fd1 = {ph: batch[k] for ph, k in fd.items()}
+    self.session.run([self.train_op], fd1)
 
   def get_action(self):
     # Epsilon-greedy action selection
@@ -204,14 +205,10 @@ class DQNAgent:
       done = early_done or done
 
       next_state = self.process_image(next_state)
-      self.step(state, action_idx, reward, done)
-
-      state = next_state
+      self.step(next_state, action_idx, reward, done)
       total_reward += reward
-
       if self.global_counter % self.network_update_frequency:
         self.session.run(self.copy_network_ops)
-
       if done:
         break
       
