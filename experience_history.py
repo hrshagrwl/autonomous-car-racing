@@ -2,7 +2,6 @@ from collections import namedtuple, deque
 import random
 import numpy as np
 import torch
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class History:
   def __init__(self, num_frame_stack = 3, capacity = int(1e5), pic_size=(96, 96)):

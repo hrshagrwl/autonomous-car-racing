@@ -3,15 +3,9 @@ import itertools as it
 import random
 from skimage import color, transform
 from collections import namedtuple, deque
-
-import tensorflow.contrib.slim as slim
-import tensorflow as tf
-
 import sys
-
 # from model import DQN
 from experience_history import History
-
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import BatchNormalization
@@ -120,18 +114,8 @@ class DQNAgent:
 
   def get_action(self):
     # Epsilon-greedy action selection
-
     if random.random() > self.get_epsilon():
-      # self.network_chosen_action += 1
-      # # Add the batch dimension before creating a tensor
       state = self.memory.current_state()[np.newaxis, ...]
-      # state = torch.from_numpy(state).float().to(device)
-      # self.training_model.eval()
-      # with torch.no_grad():
-      #   action_values = self.training_model(state)
-        
-      # self.training_model.train()
-      # action = np.argmax(action_values.cpu().data.numpy())
       act_values = self.model.predict(state)
       action = np.argmax(act_values[0])
       self.network_chosen_action += 1
@@ -153,17 +137,6 @@ class DQNAgent:
     for i, a_idx in enumerate(actions):
       Q_expected[i, a_idx] = Q_target[i]
     self.model.fit(states, Q_expected, epochs=1, verbose=0)
-
-    # if not done:
-    #   # predict the future discounted reward
-    # target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
-    #   # make the agent to approximately map
-    #   # the current state to future discounted reward
-    #   # We'll call that target_f
-    #   target_f = self.model.predict(state)
-    #   target_f[0][action] = target
-    #   # Train the Neural Net with the state and target_f
-    
 
     # ------------------- update target network ------------------- #
     if self.global_counter % self.network_update_frequency == 0:
@@ -188,9 +161,6 @@ class DQNAgent:
   def play_episode(self):
     total_reward = 0
     frames_in_episode = 0
-
-    # self.soft_update(self.training_model, self.target_model) 
-    
     state = self.env.reset()
     state = self.process_image(state)
     self.memory.start_new_episode(state)
@@ -233,10 +203,7 @@ class DQNAgent:
   # Convert RGB Image to grayscale and channel dimension
   def process_image(self, img):
     i = 2 * color.rgb2gray(img) - 1
-    # return i[np.newaxis, ...]
     return i
-    # i = np.swapaxes(img, 0, 2)
-    # return (i - 128) / 128.0
 
   # Returns a random action.
   def get_random_action(self):
